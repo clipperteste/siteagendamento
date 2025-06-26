@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Novo Agendamento</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    .calendar-week {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      gap: 8px;
+    }
+    .calendar-day {
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 8px;
+      min-width: 70px;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    .calendar-day.selected {
+      background-color: #0d6efd;
+      color: white;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body class="container py-4">
+  <h2>Novo Agendamento</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show">
+
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="calendar-week" id="calendar-week"></div>
+
+  <form method="POST" style="max-width: 500px;">
+    <input type="hidden" name="data" id="data" required />
+
+    <div class="mb-3">
+      <label class="form-label">Hora:</label>
+      <select name="hora" id="hora-select" class="form-select" required>
+        <!-- Opções geradas pelo JS -->
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Descrição:</label>
+      <input type="text" name="descricao" class="form-control" required />
+    </div>
+
+    <button class="btn btn-primary">Agendar</button>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Voltar</a>
+  </form>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Formata data YYYY-MM-DD
+    function formatDate(date) {
+      let d = new Date(date),
+          month = '' + (d.getMonth() + 1),
+          day = '' + d.getDate(),
+          year = d.getFullYear();
+      if (month.length < 2) month = '0' + month;
+      if (day.length < 2) day = '0' + day;
+      return [year, month, day].join('-');
+    }
+
+    // Data atual
+    const today = new Date();
+
+    // Pega os próximos 5 dias incluindo hoje
+    const daysToShow = 5;
+
+    const calendarWeekDiv = document.getElementById('calendar-week');
+    let selectedDate = null;
+
+    function createDays() {
+      calendarWeekDiv.innerHTML = '';
+      for (let i = 0; i < daysToShow; i++) {
+        let day = new Date(today);
+        day.setDate(today.getDate() + i);
+
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'calendar-day';
+        dayDiv.textContent = day.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'numeric' });
+        dayDiv.dataset.date = formatDate(day);
+
+        // Se for hoje, marca como selecionado
+        if (i === 0) {
+          dayDiv.classList.add('selected');
+          selectedDate = dayDiv.dataset.date;
+          document.getElementById('data').value = selectedDate;
+          gerarOpcoesHorario(selectedDate);
+        }
+
+        dayDiv.addEventListener('click', () => {
+          document.querySelectorAll('.calendar-day').forEach(e => e.classList.remove('selected'));
+          dayDiv.classList.add('selected');
+          selectedDate = dayDiv.dataset.date;
+          document.getElementById('data').value = selectedDate;
+          gerarOpcoesHorario(selectedDate);
+        });
+
+        calendarWeekDiv.appendChild(dayDiv);
+      }
+    }
+
+    // Gera opções de horário (30 em 30 min das 8h às 19h)
+    // Desabilita horários passados se for hoje
+    function gerarOpcoesHorario(data) {
+      const select = document.getElementById('hora-select');
+      select.innerHTML = '';
+
+      const horarios = [];
+      for (let h = 8; h <= 19; h++) {
+        horarios.push(`${String(h).padStart(2, '0')}:00`);
+        if (h !== 19) horarios.push(`${String(h).padStart(2, '0')}:30`);
+      }
+
+      const now = new Date();
+
+      horarios.forEach(hora => {
+        const [hh, mm] = hora.split(':').map(Number);
+        const dataHora = new Date(`${data}T${hora}:00`);
+
+        let habilitado = true;
+        if (formatDate(new Date()) === data) {
+          habilitado = dataHora >= now;
+        }
+
+        const option = document.createElement('option');
+        option.value = hora;
+        option.textContent = hora;
+        if (!habilitado) option.disabled = true;
+        select.appendChild(option);
+      });
+    }
+
+    createDays();
+  </script>
+</body>
+</html>
